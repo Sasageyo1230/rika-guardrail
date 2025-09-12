@@ -1,0 +1,10 @@
+﻿{
+  "name": "rika-guardrail-stub",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {}
+}
