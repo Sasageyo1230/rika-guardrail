@@ -1,0 +1,18 @@
+﻿services:
+  sandbox:
+    image: node:20-alpine
+    working_dir: /workspace
+    network_mode: "none"
+    read_only: true
+    tmpfs:
+      - /tmp
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 2g
+    volumes:
+      - ../../:/workspace:ro
+      - ./artifacts:/workspace/artifacts:rw
+    environment:
+      - NODE_ENV=development

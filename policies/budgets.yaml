@@ -1,0 +1,9 @@
+﻿sandbox:
+  max_job_cost_usd: 0.50
+  daily_cap_usd: 5
+staging:
+  daily_cap_usd: 20
+canary:
+  daily_cap_usd: 50
+prod:
+  monthly_cap_usd: 500
