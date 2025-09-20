@@ -1,0 +1,16 @@
+﻿flags:
+  rika.self_update.v1:
+    default: false
+    owners: ["sentinel"]
+    environments:
+      staging: true
+      canary: true
+      prod: false
+
+  release.canary.enabled:
+    default: false
+    owners: ["ops"]
+    environments:
+      staging: false
+      canary: true
+      prod: false
