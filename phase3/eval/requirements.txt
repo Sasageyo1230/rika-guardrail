@@ -1,0 +1,25 @@
+# phase3/eval/requirements.txt
+# Evaluation Harness Dependencies
+
+# Core async and HTTP
+asyncio-extras>=1.3.0
+httpx>=0.25.0
+
+# Database
+asyncpg>=0.29.0
+
+# Logging and monitoring
+structlog>=23.2.0
+python-json-logger>=2.0.4
+
+# Data processing
+pydantic>=2.0.0
+
+# Storage
+minio>=7.2.0
+
+# Environment management
+python-dotenv>=1.0.0
+
+# Time and utilities
+python-dateutil>=2.8.0

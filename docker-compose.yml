@@ -1,0 +1,261 @@
+services:
+  # ===========================================
+  # 1. PostgreSQL - State Graph Database
+  # ===========================================
+  postgres:
+    image: docker.io/library/postgres:${POSTGRES_VERSION}
+    container_name: rika-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      #- ./scripts/init/init-postgres.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    networks:
+      - rika-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================
+  # 2. Qdrant - Vector Database
+  # ===========================================
+  qdrant:
+    image: docker.io/qdrant/qdrant:${QDRANT_VERSION}
+    container_name: rika-qdrant
+    restart: unless-stopped
+    environment:
+      QDRANT__SERVICE__HTTP_PORT: 6333
+      QDRANT__SERVICE__GRPC_PORT: 6334
+      QDRANT__LOG_LEVEL: INFO
+    volumes:
+      - ./data/qdrant:/qdrant/storage
+    ports:
+      - "${QDRANT_HTTP_PORT}:6333"
+      - "${QDRANT_GRPC_PORT}:6334"
+    networks:
+      - rika-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================
+  # 3. NATS - Event Bus & Messaging
+  # ===========================================
+  nats:
+    image: docker.io/library/nats:${NATS_VERSION}
+    container_name: rika-nats
+    restart: unless-stopped
+    command: 
+      - "-js"                    # Enable JetStream
+      - "-sd"                     # Store directory
+      - "/data"
+      - "-m"                      # Monitoring port
+      - "8222"
+      - "--user"
+      - "${NATS_USER}"
+      - "--pass"
+      - "${NATS_PASSWORD}"
+    volumes:
+      - ./data/nats:/data
+      - ./configs/nats:/etc/nats
+    ports:
+      - "${NATS_CLIENT_PORT}:4222"    # Client connections
+      - "${NATS_MONITOR_PORT}:8222"   # HTTP monitoring
+    networks:
+      - rika-net
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8222/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================
+  # 4. LiveKit - WebRTC Server
+  # ===========================================
+  livekit:
+    image: docker.io/livekit/livekit-server:${LIVEKIT_VERSION}
+    container_name: rika-livekit
+    restart: unless-stopped
+    command: --config /etc/livekit.yaml
+    environment:
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+    volumes:
+      - ./configs/livekit/livekit.yaml:/etc/livekit.yaml:ro
+    ports:
+      - "${LIVEKIT_PORT}:7880"        # HTTP API
+      - "${LIVEKIT_RTC_PORT}:7881"    # WebRTC
+    networks:
+      - rika-net
+
+  # ===========================================
+  # 5. n8n - Workflow Automation
+  # ===========================================
+  n8n:
+    image: docker.io/n8nio/n8n:${N8N_VERSION}
+    container_name: rika-n8n
+    restart: unless-stopped
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${N8N_DB_NAME}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD}
+      N8N_HOST: ${N8N_HOST}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: ${N8N_WEBHOOK_URL}
+      GENERIC_TIMEZONE: ${TIMEZONE}
+    volumes:
+      - ./data/n8n:/home/node/.n8n
+      - ./configs/n8n:/configs
+    ports:
+      - "${N8N_PORT}:5678"
+    networks:
+      - rika-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ===========================================
+  # 6. MinIO - S3-Compatible Object Storage
+  # ===========================================
+  minio:
+    image: docker.io/minio/minio:${MINIO_VERSION}
+    container_name: rika-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BROWSER_REDIRECT_URL: http://localhost:${MINIO_CONSOLE_PORT}
+    volumes:
+      - ./data/minio:/data
+    ports:
+      - "${MINIO_API_PORT}:9000"      # API
+      - "${MINIO_CONSOLE_PORT}:9001"  # Console
+    networks:
+      - rika-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # ===========================================
+  # 7. Keycloak - Authentication & SSO
+  # ===========================================
+  keycloak:
+    image: docker.io/keycloak/keycloak:${KEYCLOAK_VERSION}
+    container_name: rika-keycloak
+    restart: unless-stopped
+    command: start-dev
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${KEYCLOAK_DB_NAME}
+      KC_DB_USERNAME: ${POSTGRES_USER}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./data/keycloak:/opt/keycloak/data
+      - ./configs/keycloak:/opt/keycloak/providers
+    ports:
+      - "${KEYCLOAK_PORT}:8080"
+    networks:
+      - rika-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ===========================================
+  # Backup Service (runs periodically)
+  # ===========================================
+  backup:
+    image: docker.io/library/alpine:latest
+    container_name: rika-backup
+    restart: unless-stopped
+    environment:
+      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - ./scripts:/scripts:ro
+      - ./data:/data:ro
+      - ./backups:/backups
+      - /var/run/docker.sock:/var/run/docker.sock
+    entrypoint: ["/bin/sh", "-c"]
+    command: 
+      - |
+        apk add --no-cache bash curl docker-cli postgresql-client mc
+        mc alias set minio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}
+        mc mb --ignore-existing minio/rika-backups
+        echo "Backup service initialized. Running on schedule: ${BACKUP_SCHEDULE}"
+        while true; do
+          sleep 3600
+          /scripts/backup.sh
+        done
+    networks:
+      - rika-net
+    depends_on:
+      - minio
+      - postgres
+
+  # ===========================================
+  # pgAdmin - Database Management
+  # ===========================================
+  pgadmin:
+    image: docker.io/dpage/pgadmin4:8.2
+    container_name: rika-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@rika.local
+      PGADMIN_DEFAULT_PASSWORD: pgadmin2025rika
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - ./data/pgadmin:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    networks:
+      - rika-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+networks:
+  rika-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  postgres-data:
+  qdrant-data:
+  minio-data:
+  keycloak-data:
+  n8n-data:
+  nats-data:

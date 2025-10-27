@@ -1,0 +1,239 @@
+-- ===========================================
+-- Rika Core PostgreSQL Initialization
+-- ===========================================
+-- This script runs on first container startup
+
+-- The rika_admin user is already created by POSTGRES_USER
+-- Just ensure it has the right permissions
+ALTER USER rika_admin CREATEDB;
+ALTER USER rika_admin WITH SUPERUSER;
+
+-- Create databases for services
+CREATE DATABASE n8n_db OWNER rika_admin;
+CREATE DATABASE keycloak_db OWNER rika_admin;
+
+-- Create schema for Rika Core
+CREATE SCHEMA IF NOT EXISTS rika_core;
+
+-- Set default search path
+SET search_path TO rika_core, public;
+
+-- ===========================================
+-- Core Tables
+-- ===========================================
+
+-- Agent state table
+CREATE TABLE IF NOT EXISTS agent_states (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    agent_id VARCHAR(255) NOT NULL UNIQUE,
+    state_data JSONB NOT NULL DEFAULT '{}',
+    version INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN DEFAULT true
+);
+
+-- Memory references table (links to vector DB)
+CREATE TABLE IF NOT EXISTS memory_references (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    agent_id VARCHAR(255) NOT NULL,
+    vector_id VARCHAR(255) NOT NULL,
+    memory_type VARCHAR(50) NOT NULL,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    FOREIGN KEY (agent_id) REFERENCES agent_states(agent_id) ON DELETE CASCADE
+);
+
+-- Event log table
+CREATE TABLE IF NOT EXISTS event_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_type VARCHAR(100) NOT NULL,
+    source_agent VARCHAR(255),
+    target_agent VARCHAR(255),
+    payload JSONB DEFAULT '{}',
+    status VARCHAR(50) DEFAULT 'pending',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    processed_at TIMESTAMP WITH TIME ZONE,
+    error_message TEXT
+);
+
+-- Workflow states (n8n integration)
+CREATE TABLE IF NOT EXISTS workflow_states (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workflow_id VARCHAR(255) NOT NULL,
+    execution_id VARCHAR(255) UNIQUE,
+    state VARCHAR(50) NOT NULL,
+    input_data JSONB DEFAULT '{}',
+    output_data JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Device registry (Keycloak integration)
+CREATE TABLE IF NOT EXISTS device_registry (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    device_id VARCHAR(255) NOT NULL UNIQUE,
+    device_name VARCHAR(255),
+    device_type VARCHAR(100),
+    keycloak_client_id VARCHAR(255),
+    capabilities JSONB DEFAULT '[]',
+    last_seen TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    is_authorized BOOLEAN DEFAULT false
+);
+
+-- Session management
+CREATE TABLE IF NOT EXISTS sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_token VARCHAR(255) NOT NULL UNIQUE,
+    agent_id VARCHAR(255) NOT NULL,
+    device_id VARCHAR(255),
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    last_activity TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    metadata JSONB DEFAULT '{}',
+    FOREIGN KEY (agent_id) REFERENCES agent_states(agent_id) ON DELETE CASCADE,
+    FOREIGN KEY (device_id) REFERENCES device_registry(device_id) ON DELETE SET NULL
+);
+
+-- ===========================================
+-- Indexes for Performance
+-- ===========================================
+
+CREATE INDEX idx_agent_states_agent_id ON agent_states(agent_id);
+CREATE INDEX idx_agent_states_active ON agent_states(is_active);
+CREATE INDEX idx_memory_references_agent ON memory_references(agent_id);
+CREATE INDEX idx_memory_references_vector ON memory_references(vector_id);
+CREATE INDEX idx_event_log_created ON event_log(created_at DESC);
+CREATE INDEX idx_event_log_status ON event_log(status);
+CREATE INDEX idx_workflow_states_workflow ON workflow_states(workflow_id);
+CREATE INDEX idx_device_registry_device ON device_registry(device_id);
+CREATE INDEX idx_sessions_token ON sessions(session_token);
+CREATE INDEX idx_sessions_agent ON sessions(agent_id);
+
+-- ===========================================
+-- Functions and Triggers
+-- ===========================================
+
+-- Auto-update timestamp function
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Apply auto-update trigger to agent_states
+CREATE TRIGGER update_agent_states_updated_at
+    BEFORE UPDATE ON agent_states
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Function to clean expired memories
+CREATE OR REPLACE FUNCTION clean_expired_memories()
+RETURNS INTEGER AS $$
+DECLARE
+    deleted_count INTEGER;
+BEGIN
+    DELETE FROM memory_references
+    WHERE expires_at IS NOT NULL AND expires_at < CURRENT_TIMESTAMP;
+    
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
+    RETURN deleted_count;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to archive old events
+CREATE OR REPLACE FUNCTION archive_old_events(days_to_keep INTEGER DEFAULT 30)
+RETURNS INTEGER AS $$
+DECLARE
+    archived_count INTEGER;
+BEGIN
+    -- In production, you'd move to archive table
+    -- For now, just count what would be archived
+    SELECT COUNT(*) INTO archived_count
+    FROM event_log
+    WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '1 day' * days_to_keep;
+    
+    RETURN archived_count;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ===========================================
+-- Initial Data
+-- ===========================================
+
+-- Insert system agent
+INSERT INTO agent_states (agent_id, state_data, is_active)
+VALUES ('system', '{"type": "system", "version": "0.1.0"}', true)
+ON CONFLICT (agent_id) DO NOTHING;
+
+-- Insert default device types
+INSERT INTO device_registry (device_id, device_name, device_type, capabilities)
+VALUES 
+    ('local-dev', 'Local Development', 'development', '["all"]'),
+    ('docker-host', 'Docker Host System', 'infrastructure', '["monitoring", "backup"]')
+ON CONFLICT (device_id) DO NOTHING;
+
+-- ===========================================
+-- Permissions
+-- ===========================================
+
+-- Grant permissions to n8n user (will be created by n8n)
+GRANT USAGE ON SCHEMA rika_core TO PUBLIC;
+GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA rika_core TO PUBLIC;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA rika_core TO PUBLIC;
+
+-- ===========================================
+-- Maintenance Views
+-- ===========================================
+
+-- Active agents view
+CREATE OR REPLACE VIEW v_active_agents AS
+SELECT 
+    agent_id,
+    state_data->>'type' as agent_type,
+    created_at,
+    updated_at,
+    (CURRENT_TIMESTAMP - updated_at) as time_since_update
+FROM agent_states
+WHERE is_active = true;
+
+-- Recent events view
+CREATE OR REPLACE VIEW v_recent_events AS
+SELECT 
+    event_type,
+    source_agent,
+    target_agent,
+    status,
+    created_at,
+    processed_at,
+    (processed_at - created_at) as processing_time
+FROM event_log
+WHERE created_at > CURRENT_TIMESTAMP - INTERVAL '24 hours'
+ORDER BY created_at DESC;
+
+-- System health view
+CREATE OR REPLACE VIEW v_system_health AS
+SELECT 
+    (SELECT COUNT(*) FROM agent_states WHERE is_active = true) as active_agents,
+    (SELECT COUNT(*) FROM sessions WHERE expires_at > CURRENT_TIMESTAMP) as active_sessions,
+    (SELECT COUNT(*) FROM event_log WHERE status = 'pending') as pending_events,
+    (SELECT COUNT(*) FROM device_registry WHERE is_authorized = true) as authorized_devices,
+    (SELECT pg_database_size(current_database())) as database_size_bytes;
+
+-- ===========================================
+-- Final Setup
+-- ===========================================
+
+-- Log initialization
+INSERT INTO event_log (event_type, source_agent, payload, status)
+VALUES ('system.initialized', 'system', '{"message": "Database initialized successfully"}', 'completed');
+
+-- Output confirmation
+DO $$
+BEGIN
+    RAISE NOTICE 'Rika Core PostgreSQL initialization completed successfully';
+END $$;

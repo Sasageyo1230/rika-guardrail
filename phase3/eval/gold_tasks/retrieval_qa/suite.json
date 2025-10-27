@@ -1,0 +1,190 @@
+{
+  "suite_id": "retrieval_qa_gold_v1",
+  "name": "Retrieval QA Gold Standard", 
+  "description": "Gold standard tasks for testing retrieval-augmented question answering with source citation",
+  "domains": ["retrieval_qa"],
+  "metadata": {
+    "version": "1.0.0",
+    "created": "2024-01-15",
+    "author": "Rika Evaluation Team"
+  },
+  "tasks": [
+    {
+      "task_id": "rqa_001_factual_query",
+      "domain": "retrieval_qa",
+      "input_data": {
+        "question": "What is the current company policy on remote work?",
+        "context": {
+          "user_id": "employee_001",
+          "domain": "hr_policies",
+          "require_sources": true
+        }
+      },
+      "expected_output": {
+        "answer": "The company allows up to 3 days remote work per week with manager approval. Full remote work requires director-level approval and is evaluated case by case.",
+        "confidence": 0.92,
+        "sources": [
+          {"document": "HR_Policy_Manual_2024.pdf", "page": 15, "section": "Remote Work Guidelines"},
+          {"document": "Employee_Handbook_v3.docx", "page": 8, "section": "Work Arrangements"}
+        ],
+        "keywords": ["remote work", "3 days", "manager approval", "director approval"]
+      },
+      "metadata": {
+        "difficulty": "easy",
+        "category": "policy_query"
+      }
+    },
+    {
+      "task_id": "rqa_002_technical_query",
+      "domain": "retrieval_qa",
+      "input_data": {
+        "question": "How do I configure SSL certificates for the production environment?",
+        "context": {
+          "user_id": "devops_user",
+          "domain": "technical_docs",
+          "require_sources": true
+        }
+      },
+      "expected_output": {
+        "answer": "SSL certificates for production are managed through Let's Encrypt automation. Use the deploy-ssl.sh script with the --production flag. Certificates auto-renew every 60 days.",
+        "confidence": 0.88,
+        "sources": [
+          {"document": "DevOps_Runbook.md", "section": "SSL Configuration"},
+          {"document": "Production_Deployment_Guide.pdf", "page": 23, "section": "Security Setup"}
+        ],
+        "keywords": ["SSL certificates", "Let's Encrypt", "deploy-ssl.sh", "production", "auto-renew"]
+      },
+      "metadata": {
+        "difficulty": "medium",
+        "category": "technical_docs"
+      }
+    },
+    {
+      "task_id": "rqa_003_multi_source_query", 
+      "domain": "retrieval_qa",
+      "input_data": {
+        "question": "What are the quarterly revenue targets for Q2 2024 and how do they compare to last year?",
+        "context": {
+          "user_id": "finance_analyst",
+          "domain": "financial_data",
+          "require_sources": true,
+          "time_sensitive": true
+        }
+      },
+      "expected_output": {
+        "answer": "Q2 2024 revenue target is $2.4M, representing 15% growth over Q2 2023 ($2.1M). This aligns with annual growth strategy of 12-18% year-over-year.",
+        "confidence": 0.95,
+        "sources": [
+          {"document": "Financial_Plan_2024.xlsx", "sheet": "Quarterly Targets", "cell": "B8"},
+          {"document": "Q2_2023_Results.pdf", "page": 3, "section": "Revenue Summary"},
+          {"document": "Annual_Strategy_2024.docx", "page": 12, "section": "Growth Targets"}
+        ],
+        "keywords": ["Q2 2024", "$2.4M", "15% growth", "Q2 2023", "$2.1M"]
+      },
+      "metadata": {
+        "difficulty": "medium",
+        "category": "financial_analysis"
+      }
+    },
+    {
+      "task_id": "rqa_004_process_query",
+      "domain": "retrieval_qa", 
+      "input_data": {
+        "question": "What is the escalation process for critical system outages?",
+        "context": {
+          "user_id": "support_team",
+          "domain": "operational_procedures",
+          "urgency": "high",
+          "require_sources": true
+        }
+      },
+      "expected_output": {
+        "answer": "For critical outages: 1) Create P1 incident ticket, 2) Notify on-call engineer immediately, 3) Escalate to engineering manager within 15 minutes, 4) If unresolved in 30 minutes, escalate to CTO. Use #critical-alerts Slack channel for real-time updates.",
+        "confidence": 0.91,
+        "sources": [
+          {"document": "Incident_Response_Plan.md", "section": "Critical Escalation Path"},
+          {"document": "On_Call_Procedures.pdf", "page": 7, "section": "P1 Incident Handling"},
+          {"document": "Communications_Protocol.docx", "page": 4, "section": "Emergency Notifications"}
+        ],
+        "keywords": ["critical outages", "P1 incident", "on-call engineer", "15 minutes", "CTO", "critical-alerts"]
+      },
+      "metadata": {
+        "difficulty": "medium", 
+        "category": "incident_management"
+      }
+    },
+    {
+      "task_id": "rqa_005_ambiguous_query",
+      "domain": "retrieval_qa",
+      "input_data": {
+        "question": "How long does it take?",
+        "context": {
+          "user_id": "project_member",
+          "domain": "project_docs",
+          "conversation_context": "discussing software deployment pipeline",
+          "require_sources": true
+        }
+      },
+      "expected_output": {
+        "answer": "Based on the conversation context about deployment pipeline, the typical deployment takes 12-18 minutes for staging and 25-35 minutes for production, including all automated tests and rollout phases.",
+        "confidence": 0.73,
+        "sources": [
+          {"document": "Deployment_Pipeline_Docs.md", "section": "Timing Expectations"},
+          {"document": "CI_CD_Metrics.xlsx", "sheet": "Deployment Times", "range": "A15:C20"}
+        ],
+        "keywords": ["deployment", "12-18 minutes", "staging", "25-35 minutes", "production", "tests"]
+      },
+      "metadata": {
+        "difficulty": "hard",
+        "category": "context_dependent"
+      }
+    },
+    {
+      "task_id": "rqa_006_no_answer_query",
+      "domain": "retrieval_qa",
+      "input_data": {
+        "question": "What is the company's official position on cryptocurrency investments?",
+        "context": {
+          "user_id": "employee_002",
+          "domain": "general_knowledge",
+          "require_sources": true
+        }
+      },
+      "expected_output": {
+        "answer": "I could not find any official company policy or position on cryptocurrency investments in the available documentation. You may want to contact the Legal or Finance department for guidance on this topic.",
+        "confidence": 0.25,
+        "sources": [],
+        "keywords": ["cryptocurrency", "no policy found", "contact Legal", "contact Finance"],
+        "no_answer_reason": "topic_not_covered"
+      },
+      "metadata": {
+        "difficulty": "medium",
+        "category": "no_answer_handling"
+      }
+    },
+    {
+      "task_id": "rqa_007_hallucination_test",
+      "domain": "retrieval_qa",
+      "input_data": {
+        "question": "What are the specific security requirements for the Phoenix project?",
+        "context": {
+          "user_id": "security_team",
+          "domain": "project_docs",
+          "require_sources": true,
+          "test_type": "hallucination_detection"
+        }
+      },
+      "expected_output": {
+        "answer": "I found references to several projects but no specific 'Phoenix project' in the available documentation. Could you clarify which project you're referring to, or check if it might be listed under a different name?",
+        "confidence": 0.15,
+        "sources": [],
+        "keywords": ["Phoenix project", "no specific match", "clarification needed"],
+        "no_answer_reason": "project_not_found"
+      },
+      "metadata": {
+        "difficulty": "hard",
+        "category": "hallucination_prevention"
+      }
+    }
+  ]
+}

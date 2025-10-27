@@ -1,0 +1,217 @@
+# Rika Phase 2 Configuration
+
+# Application settings
+app:
+  name: "Rika"
+  version: "2.0.0"
+  phase: "Phase 2 - Orchestrator + Mint MVP"
+
+# LLM settings
+llm:
+  # Path to local LLM model (GGUF format)
+  model_path: "models/rika-llm.gguf"
+
+  # Alternative: Use mock LLM for testing (when model not available)
+  use_mock: true  # Set to false when real model is available
+
+  # Model parameters
+  context_size: 2048
+  threads: 8
+  temperature: 0.3
+  top_p: 0.9
+  top_k: 40
+
+  # Alternative LLM providers (optional)
+  providers:
+    openai:
+      enabled: false
+      api_key: null
+      model: "gpt-3.5-turbo"
+
+    anthropic:
+      enabled: false
+      api_key: null
+      model: "claude-3-sonnet-20240229"
+
+# Database settings
+database:
+  # PostgreSQL connection
+  host: "localhost"
+  port: 5432
+  database: "rika_db"
+  user: "rika_user"
+  password: "${RIKA_DB_PASSWORD}"  # From environment variable
+
+  # Connection pool
+  pool_size: 10
+  max_overflow: 20
+
+# Vector store settings
+vector_store:
+  # Chroma settings
+  type: "chroma"
+  persist_directory: "data/vector_db"
+  collection_name: "cognitive_sphere"
+
+  # Embedding settings
+  embedding_dimension: 384
+  similarity_metric: "cosine"
+
+# Security settings
+security:
+  # Encryption
+  encryption_key: "${RIKA_ENCRYPTION_KEY}"  # From environment variable
+  encryption_algorithm: "AES-256-GCM"
+
+  # Authentication
+  session_timeout_minutes: 60
+  require_2fa: false
+
+  # TLS/SSL
+  tls_enabled: true
+  cert_path: "certs/rika.crt"
+  key_path: "certs/rika.key"
+
+# Cognitive Sphere settings
+cognitive_sphere:
+  # Data sources
+  sources:
+    gmail:
+      enabled: false  # Enable when credentials available
+      credentials: "credentials/gmail_oauth.json"
+      email_limit: 500
+      lookback_days: 60
+
+    calendar:
+      enabled: false
+      credentials: "credentials/calendar_oauth.json"
+      lookback_days: 90
+
+    github:
+      enabled: true
+      token: "${GITHUB_TOKEN}"  # From environment variable
+      scan_local_repos: true
+
+    projects:
+      enabled: true
+      folders:
+        - "~/projects"
+        - "~/code"
+        - "."
+
+  # Ingestion settings
+  ingestion:
+    auto_ingest_on_startup: false
+    schedule_interval_hours: 24
+    batch_size: 100
+
+# Agent settings
+agents:
+  # Mint - YouTube automation
+  mint:
+    enabled: true
+    credentials: "credentials/youtube_oauth.json"
+    auto_analyze_interval_hours: 24
+
+  # Rig - Creative automation (future)
+  rig:
+    enabled: false
+    blender_path: null
+
+  # Scout - Research assistant (future)
+  scout:
+    enabled: false
+
+# Boundaries configuration
+boundaries_config: "config/boundaries.yaml"
+
+# System prompt configuration
+system_prompt: "config/system_prompt.yaml"
+
+# Logging settings
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+  # Log files
+  files:
+    main: "logs/rika.log"
+    agents: "logs/agents.log"
+    security: "logs/security.log"
+    audit: "logs/audit.log"
+
+  # Log rotation
+  rotation:
+    max_bytes: 10485760  # 10 MB
+    backup_count: 5
+
+# Dashboard settings
+dashboard:
+  enabled: true
+  host: "localhost"
+  port: 8080
+  auto_open_browser: false
+
+# API settings
+api:
+  enabled: true
+  host: "localhost"
+  port: 8000
+  cors_enabled: true
+  cors_origins:
+    - "http://localhost:3000"
+    - "http://localhost:8080"
+
+# Approval workflow settings
+approvals:
+  # How to notify user of approval requests
+  notification_method: "dashboard"  # "dashboard", "email", "webhook"
+
+  # Timeout settings
+  timeout_minutes: 60
+  timeout_action: "deny"
+
+  # Queue settings
+  max_queue_size: 100
+  auto_cleanup_completed: true
+
+# Backup settings
+backup:
+  enabled: true
+  interval_hours: 24
+  retention_days: 30
+  backup_path: "backups/"
+
+  # What to backup
+  include:
+    - "database"
+    - "vector_store"
+    - "config"
+    - "logs"
+
+# Performance settings
+performance:
+  # Cache settings
+  cache_enabled: true
+  cache_ttl_seconds: 3600
+
+  # Rate limiting
+  rate_limiting_enabled: true
+
+  # Async processing
+  async_enabled: true
+  worker_threads: 4
+
+# Development settings
+development:
+  debug_mode: false
+  hot_reload: false
+  mock_external_apis: true  # Use mock APIs in development
+
+# Feature flags
+features:
+  cognitive_sphere: true
+  agent_orchestration: true
+  approval_workflow: true
+  auto_learning: false  # Enable once learning pipeline is stable
+  advanced_analytics: false  # Future feature

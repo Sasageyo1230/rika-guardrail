@@ -1,0 +1,17 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*.class
+.venv/
+.env
+*.db
+
+# Large binaries
+*.exe
+*.app
+*.dmg
+
+# Build artifacts
+dist/
+build/
+*.egg-info/

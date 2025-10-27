@@ -1,0 +1,189 @@
+{
+  "suite_id": "link_command_gold_v1",
+  "name": "Link Command Gold Standard",
+  "description": "Gold standard tasks for testing link command execution and responses",
+  "domains": ["link_command"],
+  "metadata": {
+    "version": "1.0.0",
+    "created": "2024-01-15",
+    "author": "Rika Evaluation Team"
+  },
+  "tasks": [
+    {
+      "task_id": "lc_001_open_document",
+      "domain": "link_command",
+      "input_data": {
+        "command": "open",
+        "target": "project_proposal.docx",
+        "context": {
+          "user_id": "current_user",
+          "workspace": "documents"
+        }
+      },
+      "expected_output": {
+        "success": true,
+        "response": "Opened project_proposal.docx in default application",
+        "action_taken": "file_opened",
+        "file_path": "/documents/project_proposal.docx",
+        "application": "Microsoft Word"
+      },
+      "metadata": {
+        "difficulty": "easy",
+        "category": "file_operations"
+      }
+    },
+    {
+      "task_id": "lc_002_create_folder",
+      "domain": "link_command",
+      "input_data": {
+        "command": "create",
+        "target": "new_project_folder",
+        "target_type": "folder",
+        "context": {
+          "user_id": "current_user",
+          "workspace": "projects",
+          "parent_path": "/projects"
+        }
+      },
+      "expected_output": {
+        "success": true,
+        "response": "Created folder 'new_project_folder' in /projects",
+        "action_taken": "folder_created",
+        "full_path": "/projects/new_project_folder",
+        "permissions": "user_read_write"
+      },
+      "metadata": {
+        "difficulty": "easy",
+        "category": "file_operations"
+      }
+    },
+    {
+      "task_id": "lc_003_search_files",
+      "domain": "link_command",
+      "input_data": {
+        "command": "search",
+        "target": "quarterly_report",
+        "context": {
+          "user_id": "current_user",
+          "search_scope": "all_workspaces",
+          "file_types": ["docx", "pdf", "xlsx"]
+        }
+      },
+      "expected_output": {
+        "success": true,
+        "response": "Found 3 files matching 'quarterly_report'",
+        "action_taken": "search_completed",
+        "results": [
+          {"name": "Q3_quarterly_report.pdf", "path": "/reports/Q3_quarterly_report.pdf", "modified": "2024-01-10"},
+          {"name": "Q4_quarterly_report_draft.docx", "path": "/drafts/Q4_quarterly_report_draft.docx", "modified": "2024-01-14"},
+          {"name": "quarterly_report_template.xlsx", "path": "/templates/quarterly_report_template.xlsx", "modified": "2024-01-05"}
+        ]
+      },
+      "metadata": {
+        "difficulty": "medium",
+        "category": "search_operations"
+      }
+    },
+    {
+      "task_id": "lc_004_run_application",
+      "domain": "link_command",
+      "input_data": {
+        "command": "run",
+        "target": "calculator",
+        "context": {
+          "user_id": "current_user",
+          "launch_mode": "normal"
+        }
+      },
+      "expected_output": {
+        "success": true,
+        "response": "Launched Calculator application",
+        "action_taken": "application_launched",
+        "process_id": 1234,
+        "application_name": "Calculator"
+      },
+      "metadata": {
+        "difficulty": "easy",
+        "category": "application_control"
+      }
+    },
+    {
+      "task_id": "lc_005_share_file",
+      "domain": "link_command",
+      "input_data": {
+        "command": "share",
+        "target": "meeting_notes.docx",
+        "context": {
+          "user_id": "current_user",
+          "recipients": ["john@company.com", "sarah@company.com"],
+          "permissions": "read_only",
+          "expiry_days": 7
+        }
+      },
+      "expected_output": {
+        "success": true,
+        "response": "Shared meeting_notes.docx with 2 recipients (read-only, expires in 7 days)",
+        "action_taken": "file_shared",
+        "share_link": "https://share.company.com/files/abc123",
+        "recipients_notified": ["john@company.com", "sarah@company.com"],
+        "expiry_date": "2024-01-22"
+      },
+      "metadata": {
+        "difficulty": "medium",
+        "category": "collaboration"
+      }
+    },
+    {
+      "task_id": "lc_006_complex_workflow",
+      "domain": "link_command",
+      "input_data": {
+        "command": "workflow",
+        "target": "monthly_report_generation",
+        "context": {
+          "user_id": "current_user",
+          "parameters": {
+            "month": "January",
+            "year": 2024,
+            "departments": ["sales", "marketing", "development"]
+          },
+          "output_format": "pdf"
+        }
+      },
+      "expected_output": {
+        "success": true,
+        "response": "Generated monthly report for January 2024 covering 3 departments",
+        "action_taken": "workflow_executed",
+        "output_file": "/reports/monthly_report_jan_2024.pdf",
+        "processing_time": "45 seconds",
+        "data_sources": ["sales_db", "marketing_analytics", "dev_metrics"]
+      },
+      "metadata": {
+        "difficulty": "hard",
+        "category": "workflow_automation"
+      }
+    },
+    {
+      "task_id": "lc_007_error_handling",
+      "domain": "link_command",
+      "input_data": {
+        "command": "open",
+        "target": "nonexistent_file.txt",
+        "context": {
+          "user_id": "current_user",
+          "workspace": "documents"
+        }
+      },
+      "expected_output": {
+        "success": false,
+        "response": "File not found: nonexistent_file.txt",
+        "action_taken": "error_reported",
+        "error_code": "FILE_NOT_FOUND",
+        "suggestions": ["Check file name spelling", "Search for similar files", "Create new file with this name"]
+      },
+      "metadata": {
+        "difficulty": "medium",
+        "category": "error_handling"
+      }
+    }
+  ]
+}

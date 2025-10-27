@@ -1,0 +1,233 @@
+# Rika Phase 3.3 Setup Script - Windows PowerShell 5.1 Compatible
+# NO venv activation - assumes user has already activated their environment
+
+param(
+    [switch]$Verbose,
+    [switch]$Clean
+)
+
+$ErrorActionPreference = "Continue"
+
+# Build paths with single-child Join-Path for PS 5.1
+$ScriptDir = $PSScriptRoot
+$Phase33Root = Split-Path -Path $ScriptDir -Parent
+$RikaRoot = Split-Path -Path $Phase33Root -Parent
+$LogsDir = Join-Path -Path $Phase33Root -ChildPath "logs"
+$LogFile = Join-Path -Path $LogsDir -ChildPath "setup.log"
+
+# Ensure logs directory exists
+if (-not (Test-Path $LogsDir)) {
+    New-Item -ItemType Directory -Path $LogsDir -Force | Out-Null
+}
+
+function Write-Log {
+    param(
+        [string]$Message,
+        [string]$Level = "INFO"
+    )
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $logMessage = "[$timestamp] [$Level] $Message"
+    
+    # Color mapping
+    $color = switch ($Level) {
+        "ERROR" { "Red" }
+        "WARNING" { "Yellow" }
+        "SUCCESS" { "Green" }
+        "INFO" { "Cyan" }
+        default { "White" }
+    }
+    
+    # Always show important messages
+    if ($Verbose -or $Level -in @("ERROR", "WARNING", "SUCCESS")) {
+        Write-Host $logMessage -ForegroundColor $color
+    }
+    
+    # Always write to log file
+    Add-Content -Path $LogFile -Value $logMessage -ErrorAction SilentlyContinue
+}
+
+Write-Host "`n" + ("=" * 70) -ForegroundColor Cyan
+Write-Host "🚀 Rika Phase 3.3 Setup - Windows PowerShell 5.1" -ForegroundColor Cyan
+Write-Host ("=" * 70) -ForegroundColor Cyan
+
+Write-Log "Starting setup from: $RikaRoot" -Level "INFO"
+
+# Check virtual environment - NEVER try to activate
+if ($env:VIRTUAL_ENV) {
+    Write-Log "[OK] Virtual environment already active: $env:VIRTUAL_ENV" -Level "SUCCESS"
+} else {
+    Write-Log "[WARNING] No virtual environment detected - continuing anyway" -Level "WARNING"
+    Write-Host "Note: You may need to activate your .venv manually" -ForegroundColor Yellow
+}
+
+# Check Python
+try {
+    $pythonVersion = & python --version 2>&1
+    Write-Log "[OK] Python detected: $pythonVersion" -Level "SUCCESS"
+} catch {
+    Write-Log "[ERROR] Python not found! Please ensure Python is in PATH" -Level "ERROR"
+    exit 1
+}
+
+# Create required directories
+Write-Log "Creating project structure..." -Level "INFO"
+$directories = @("logs", "data", "config", "temp")
+
+foreach ($dir in $directories) {
+    $dirPath = Join-Path -Path $RikaRoot -ChildPath $dir
+    if (-not (Test-Path $dirPath)) {
+        New-Item -ItemType Directory -Path $dirPath -Force | Out-Null
+        Write-Log "[OK] Created: $dir" -Level "SUCCESS"
+    } else {
+        Write-Log "- Exists: $dir" -Level "INFO"
+    }
+}
+
+# Install Python requirements if exists
+$requirementsPath = Join-Path -Path $RikaRoot -ChildPath "requirements.txt"
+if (Test-Path $requirementsPath) {
+    Write-Log "Installing Python requirements..." -Level "INFO"
+    try {
+        $pipOutput = & python -m pip install -r $requirementsPath --quiet --disable-pip-version-check 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Log "[OK] Python requirements installed successfully" -Level "SUCCESS"
+        } else {
+            Write-Log "[WARNING] Some packages may have warnings, but continuing..." -Level "WARNING"
+        }
+    } catch {
+        Write-Log "[WARNING] Failed to install requirements: $_" -Level "WARNING"
+    }
+} else {
+    Write-Log "- No requirements.txt found at root, skipping pip install" -Level "INFO"
+}
+
+# Setup UI environment if exists
+$uiPath = Join-Path -Path $RikaRoot -ChildPath "ui"
+if (Test-Path $uiPath) {
+    Write-Log "Configuring Atlas UI..." -Level "INFO"
+    
+    # Create .env from .env.example if needed
+    $envPath = Join-Path -Path $uiPath -ChildPath ".env"
+    $envExamplePath = Join-Path -Path $uiPath -ChildPath ".env.example"
+    
+    if (-not (Test-Path $envPath)) {
+        if (Test-Path $envExamplePath) {
+            Copy-Item -Path $envExamplePath -Destination $envPath
+            Write-Log "[OK] Created .env from .env.example" -Level "SUCCESS"
+        } else {
+            # Create minimal .env
+            $envContent = @"
+VITE_API_BASE_URL=http://localhost:5317
+VITE_APP_NAME=Rika Atlas
+VITE_ENVIRONMENT=development
+"@
+            $envContent | Out-File -FilePath $envPath -Encoding UTF8
+            Write-Log "[OK] Created .env with API base URL" -Level "SUCCESS"
+        }
+    }
+    
+    # Ensure VITE_API_BASE_URL is set correctly to API port 5317
+    $envContent = Get-Content -Path $envPath -Raw -ErrorAction SilentlyContinue
+    if ($envContent -and $envContent -notmatch "VITE_API_BASE_URL=http://localhost:5317") {
+        Write-Log "Updating VITE_API_BASE_URL in .env..." -Level "INFO"
+        $envContent = $envContent -replace 'VITE_API_BASE_URL=.*', 'VITE_API_BASE_URL=http://localhost:5317'
+        $envContent | Out-File -FilePath $envPath -Encoding UTF8
+        Write-Log "[OK] Set VITE_API_BASE_URL=http://localhost:5317" -Level "SUCCESS"
+    }
+    
+    # Check for package.json and install if needed
+    $packageJsonPath = Join-Path -Path $uiPath -ChildPath "package.json"
+    if (Test-Path $packageJsonPath) {
+        $nodeModulesPath = Join-Path -Path $uiPath -ChildPath "node_modules"
+        if (-not (Test-Path $nodeModulesPath) -or $Clean) {
+            Write-Log "Installing Node.js dependencies..." -Level "INFO"
+            Push-Location $uiPath
+            try {
+                $npmOutput = & npm install 2>&1
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Log "[OK] Node.js dependencies installed" -Level "SUCCESS"
+                } else {
+                    Write-Log "[WARNING] npm install had warnings, but continuing..." -Level "WARNING"
+                }
+            } catch {
+                Write-Log "[WARNING] npm install failed: $_" -Level "WARNING"
+            } finally {
+                Pop-Location
+            }
+        } else {
+            Write-Log "- Node modules already installed" -Level "INFO"
+        }
+    }
+} else {
+    Write-Log "- UI directory not found, skipping UI setup" -Level "INFO"
+}
+
+# Service directory detection
+Write-Host "`nService Detection:" -ForegroundColor Yellow
+Write-Host ("-" * 50) -ForegroundColor Gray
+
+$services = @("core", "overseer", "great_sage", "research_vault", "ui")
+$foundServices = @()
+
+foreach ($service in $services) {
+    $servicePath = Join-Path -Path $RikaRoot -ChildPath $service
+    if (Test-Path $servicePath) {
+        $foundServices += $service
+        Write-Host "  [OK] $service" -ForegroundColor Green -NoNewline
+        
+        # Check for Python entrypoints
+        if ($service -ne "ui") {
+            $mainPy = Join-Path -Path $servicePath -ChildPath "main.py"
+            $apiPy = Join-Path -Path $servicePath -ChildPath "api.py"
+            $appPy = Join-Path -Path $servicePath -ChildPath "app.py"
+            
+            if (Test-Path $mainPy) {
+                $content = Get-Content -Path $mainPy -Raw -ErrorAction SilentlyContinue
+                if ($content -and $content -match 'app\s*=.*FastAPI') {
+                    Write-Host " (main.py -> main:app)" -ForegroundColor Gray
+                } else {
+                    Write-Host " (main.py exists but no FastAPI app found)" -ForegroundColor Yellow
+                }
+            } elseif (Test-Path $apiPy) {
+                $content = Get-Content -Path $apiPy -Raw -ErrorAction SilentlyContinue
+                if ($content -and $content -match 'app\s*=.*FastAPI') {
+                    Write-Host " (api.py -> api:app)" -ForegroundColor Gray
+                } else {
+                    Write-Host " (api.py exists but no FastAPI app found)" -ForegroundColor Yellow
+                }
+            } elseif (Test-Path $appPy) {
+                $content = Get-Content -Path $appPy -Raw -ErrorAction SilentlyContinue
+                if ($content -and $content -match 'app\s*=.*FastAPI') {
+                    Write-Host " (app.py -> app:app)" -ForegroundColor Gray
+                } else {
+                    Write-Host " (app.py exists but no FastAPI app found)" -ForegroundColor Yellow
+                }
+            } else {
+                Write-Host " ([WARNING] no entrypoint found)" -ForegroundColor Yellow
+                Write-Host "    Hint: Create $service\main.py with app = FastAPI()" -ForegroundColor Gray
+            }
+        } else {
+            $packageJson = Join-Path -Path $servicePath -ChildPath "package.json"
+            if (Test-Path $packageJson) {
+                Write-Host " (package.json found)" -ForegroundColor Gray
+            } else {
+                Write-Host " ([WARNING] no package.json)" -ForegroundColor Yellow
+            }
+        }
+    } else {
+        Write-Host "  - $service (folder not found)" -ForegroundColor Gray
+    }
+}
+
+Write-Host "`n" + ("=" * 70) -ForegroundColor Green
+Write-Host "🎉 Setup Complete!" -ForegroundColor Green
+Write-Host ("-" * 50) -ForegroundColor Gray
+Write-Host "Found $($foundServices.Count) services: $($foundServices -join ', ')" -ForegroundColor White
+Write-Host "`nSetup log: $LogFile" -ForegroundColor Cyan
+Write-Host "`nNext steps:" -ForegroundColor Cyan
+Write-Host "  1. .\start-dev.ps1    # Start development servers" -ForegroundColor White
+Write-Host "  2. .\test.ps1         # Verify services" -ForegroundColor White
+Write-Host "  3. Open http://localhost:5173 for Atlas UI" -ForegroundColor White
+Write-Host ("=" * 70) -ForegroundColor Green
+
+Write-Log "Setup completed successfully" -Level "SUCCESS"

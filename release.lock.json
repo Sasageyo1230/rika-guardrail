@@ -1,0 +1,129 @@
+{
+  "version": "0.1.0",
+  "release_date": "2025-01-08",
+  "environment": "development",
+  "components": {
+    "core_services": {
+      "postgres": {
+        "image": "postgres",
+        "version": "16-alpine",
+        "hash": "sha256:latest",
+        "critical": true,
+        "description": "Primary state graph database"
+      },
+      "qdrant": {
+        "image": "qdrant/qdrant",
+        "version": "v1.7.4",
+        "hash": "sha256:latest",
+        "critical": true,
+        "description": "Vector database for memory embeddings"
+      },
+      "nats": {
+        "image": "nats",
+        "version": "2.10-alpine",
+        "hash": "sha256:latest",
+        "critical": true,
+        "description": "Event bus and messaging system"
+      },
+      "livekit": {
+        "image": "livekit/livekit-server",
+        "version": "v1.5.3",
+        "hash": "sha256:latest",
+        "critical": false,
+        "description": "WebRTC server for real-time communication"
+      },
+      "n8n": {
+        "image": "n8nio/n8n",
+        "version": "1.23.0",
+        "hash": "sha256:latest",
+        "critical": false,
+        "description": "Workflow automation and approval gates"
+      },
+      "minio": {
+        "image": "minio/minio",
+        "version": "RELEASE.2024-01-16T16-07-38Z",
+        "hash": "sha256:latest",
+        "critical": true,
+        "description": "S3-compatible object storage"
+      },
+      "keycloak": {
+        "image": "quay.io/keycloak/keycloak",
+        "version": "23.0",
+        "hash": "sha256:latest",
+        "critical": true,
+        "description": "Authentication and device enrollment"
+      }
+    },
+    "support_services": {
+      "backup": {
+        "image": "alpine",
+        "version": "latest",
+        "hash": "sha256:latest",
+        "critical": false,
+        "description": "Automated backup service"
+      }
+    }
+  },
+  "configurations": {
+    "network": {
+      "name": "rika-net",
+      "subnet": "172.28.0.0/16",
+      "driver": "bridge"
+    },
+    "volumes": {
+      "persistent": [
+        "postgres-data",
+        "qdrant-data",
+        "minio-data",
+        "keycloak-data",
+        "n8n-data",
+        "nats-data"
+      ],
+      "backup_retention": "30 days"
+    },
+    "ports": {
+      "postgres": 5432,
+      "qdrant_http": 6333,
+      "qdrant_grpc": 6334,
+      "nats_client": 4222,
+      "nats_monitor": 8222,
+      "livekit_http": 7880,
+      "livekit_rtc": 7881,
+      "n8n": 5678,
+      "minio_api": 9000,
+      "minio_console": 9001,
+      "keycloak": 8080
+    }
+  },
+  "dependencies": {
+    "docker": ">=24.0.0",
+    "docker_compose": ">=2.23.0"
+  },
+  "migrations": {
+    "from_version": null,
+    "migration_scripts": [],
+    "breaking_changes": []
+  },
+  "changelog": {
+    "0.1.0": {
+      "date": "2025-01-08",
+      "changes": [
+        "Initial release of Rika Core Phase 0",
+        "Added PostgreSQL for state management",
+        "Added Qdrant for vector storage",
+        "Added NATS for event messaging",
+        "Added LiveKit for WebRTC",
+        "Added n8n for workflow automation",
+        "Added MinIO for object storage",
+        "Added Keycloak for authentication",
+        "Implemented automated backup system"
+      ]
+    }
+  },
+  "checksums": {
+    "docker-compose.yml": "pending",
+    ".env.example": "pending",
+    "scripts/backup.sh": "pending",
+    "scripts/restore.sh": "pending"
+  }
+}

@@ -1,0 +1,7 @@
+# agent-desktop/requirements.txt
+requests==2.31.0
+psutil==5.9.6
+pynput==1.7.6
+nats-py==2.6.0
+python-dotenv==1.0.0
+pywin32==306

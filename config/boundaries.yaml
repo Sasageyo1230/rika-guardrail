@@ -1,0 +1,204 @@
+# Agent Boundaries and Permissions Configuration
+# Defines what data each agent can access and what actions they can perform
+
+strict_mode: false  # When true, denies all access not explicitly allowed
+
+agents:
+  mint:
+    name: "Mint - YouTube Automation"
+    description: "Automates YouTube content scheduling, analytics, and optimization for passive income"
+
+    # Data types this agent CAN access
+    allowed_data:
+      - "youtube_channel_info"
+      - "youtube_analytics"
+      - "video_metadata"
+      - "video_analytics"
+      - "schedule_data"
+      - "audience_data"
+      - "revenue_data"
+
+    # Data types this agent CANNOT access (hard block)
+    blocked_data:
+      - "email_content"
+      - "email_addresses"
+      - "payment_info"
+      - "personal_notes"
+      - "private_conversations"
+      - "financial_data"
+      - "passwords"
+      - "api_keys"
+
+    # Actions this agent can perform
+    allowed_actions:
+      - "analyze_performance"
+      - "schedule_post"
+      - "generate_thumbnail"
+      - "suggest_post_time"
+      - "get_revenue_report"
+      - "analyze_audience"
+      - "optimize_metadata"
+
+    # Actions that require user approval before execution
+    approval_required:
+      - "schedule_post"
+      - "post_video"
+      - "delete_video"
+      - "modify_video_privacy"
+
+    # Rate limits
+    rate_limits:
+      api_calls_per_hour: 100
+      actions_per_day: 50
+
+  rig:
+    name: "Rig - Creative Automation"
+    description: "Automates creative workflows, asset generation, and Blender plugin development"
+
+    allowed_data:
+      - "project_files"
+      - "design_notes"
+      - "blender_projects"
+      - "asset_library"
+      - "workflow_data"
+      - "render_settings"
+
+    blocked_data:
+      - "email"
+      - "email_content"
+      - "payment_info"
+      - "personal_notes"
+      - "youtube_data"
+      - "passwords"
+      - "api_keys"
+
+    allowed_actions:
+      - "suggest_assets"
+      - "generate_plugins"
+      - "analyze_workflow"
+      - "optimize_render"
+      - "create_material"
+      - "automate_task"
+
+    approval_required:
+      - "generate_code"
+      - "modify_project"
+      - "install_plugin"
+
+    rate_limits:
+      api_calls_per_hour: 200
+      actions_per_day: 100
+
+  scout:
+    name: "Scout - Research Assistant"
+    description: "Researches topics, gathers information, and provides insights"
+
+    allowed_data:
+      - "web_search_results"
+      - "research_notes"
+      - "bookmarks"
+      - "reading_list"
+      - "knowledge_base"
+
+    blocked_data:
+      - "email_content"
+      - "payment_info"
+      - "personal_notes"
+      - "private_conversations"
+      - "passwords"
+      - "api_keys"
+
+    allowed_actions:
+      - "search_web"
+      - "summarize_content"
+      - "research_topic"
+      - "gather_sources"
+      - "analyze_trends"
+
+    approval_required:
+      - "save_to_knowledge_base"
+      - "share_research"
+
+    rate_limits:
+      api_calls_per_hour: 300
+      actions_per_day: 200
+
+# Global boundaries (apply to all agents)
+global:
+  # Data types that NO agent can access
+  always_blocked:
+    - "passwords"
+    - "api_keys"
+    - "private_keys"
+    - "auth_tokens"
+    - "ssn"
+    - "credit_card_numbers"
+
+  # Actions that ALWAYS require approval
+  always_require_approval:
+    - "send_email"
+    - "make_payment"
+    - "delete_data"
+    - "share_externally"
+    - "modify_security_settings"
+
+  # Maximum rate limits (global)
+  global_rate_limits:
+    total_api_calls_per_hour: 500
+    total_actions_per_day: 300
+
+# Privacy settings
+privacy:
+  # Encryption settings
+  encrypt_at_rest: true
+  encrypt_in_transit: true
+
+  # Audit settings
+  log_all_access: true
+  log_retention_days: 90
+
+  # Data retention
+  auto_delete_after_days: 365
+  anonymize_after_days: 180
+
+# Approval workflow settings
+approvals:
+  # Timeout for approval requests
+  timeout_minutes: 60
+
+  # What to do when approval times out
+  timeout_action: "deny"  # "deny" or "request_again"
+
+  # Notification channels for approval requests
+  notification_channels:
+    - "dashboard"
+    - "email"  # Optional
+
+  # Auto-approve settings (use with caution)
+  auto_approve:
+    enabled: false
+    # Only auto-approve these low-risk actions
+    actions: []
+
+# Emergency settings
+emergency:
+  # Kill switch - completely disable all agents
+  kill_switch_enabled: false
+
+  # Pause agents (temporarily disable without full shutdown)
+  pause_all_agents: false
+
+  # Emergency contacts
+  emergency_notification_email: null
+
+# Compliance settings
+compliance:
+  # GDPR compliance
+  gdpr_enabled: true
+  right_to_deletion: true
+
+  # Data minimization
+  collect_minimum_data: true
+
+  # Transparency
+  explain_all_decisions: true

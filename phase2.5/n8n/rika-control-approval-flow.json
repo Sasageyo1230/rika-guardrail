@@ -1,0 +1,361 @@
+{
+  "meta": {
+    "templateCreatedBy": "rika-project",
+    "templateId": "rika-control-approval"
+  },
+  "name": "Rika Control Approval Flow",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "rika-control-approval",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Control Request Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "rika-control-approval"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.device_id}}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "validate-request",
+      "name": "Validate Request",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "message": "🤖 **Rika Remote Control Request**\n\n📱 **Device**: {{$json.device_name}} ({{$json.device_id}})\n⏰ **Duration**: {{$json.ttl_minutes}} minutes\n📝 **Reason**: {{$json.reason}}\n🕒 **Expires**: {{$json.expires_at}}\n\n**Actions:**\n• ✅ Reply 'approve' to grant control\n• ❌ Reply 'deny' to reject\n• ⏰ Will auto-deny in 5 minutes",
+        "additionalFields": {
+          "reply_markup": {
+            "inline_keyboard": [
+              [
+                {
+                  "text": "✅ Approve",
+                  "callback_data": "approve_{{$json.request_id}}"
+                },
+                {
+                  "text": "❌ Deny", 
+                  "callback_data": "deny_{{$json.request_id}}"
+                }
+              ]
+            ]
+          }
+        }
+      },
+      "id": "send-telegram",
+      "name": "Send Telegram Approval",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [680, 200],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot",
+          "name": "Rika Control Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "subject": "🤖 Rika Remote Control Request - {{$json.device_name}}",
+        "emailType": "html",
+        "message": "<h2>Rika Remote Control Request</h2>\n<p><strong>Device:</strong> {{$json.device_name}} ({{$json.device_id}})</p>\n<p><strong>Duration:</strong> {{$json.ttl_minutes}} minutes</p>\n<p><strong>Reason:</strong> {{$json.reason}}</p>\n<p><strong>Expires:</strong> {{$json.expires_at}}</p>\n\n<div style=\"margin: 20px 0;\">\n<a href=\"http://localhost:8000/control/approve?request_id={{$json.request_id}}&approved=true\" \n   style=\"background: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; margin-right: 10px;\">✅ Approve</a>\n<a href=\"http://localhost:8000/control/approve?request_id={{$json.request_id}}&approved=false\" \n   style=\"background: #f44336; color: white; padding: 10px 20px; text-decoration: none;\">❌ Deny</a>\n</div>\n\n<p><em>This request will auto-deny in 5 minutes.</em></p>",
+        "options": {}
+      },
+      "id": "send-email",
+      "name": "Send Email Approval",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [680, 380],
+      "credentials": {
+        "smtp": {
+          "id": "smtp-config",
+          "name": "Rika SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 300,
+        "unit": "seconds"
+      },
+      "id": "timeout-wait",
+      "name": "Wait 5 Minutes",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8000/control/approve",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"request_id\": \"{{$json.request_id}}\",\n  \"approved\": false,\n  \"approver\": \"auto-timeout\"\n}",
+        "options": {}
+      },
+      "id": "auto-deny",
+      "name": "Auto-Deny on Timeout",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "triggerOn": "received"
+      },
+      "id": "telegram-callback",
+      "name": "Telegram Callback",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [240, 500],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot",
+          "name": "Rika Control Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.callback_query.data}}",
+              "operation": "startsWith",
+              "value2": "approve_"
+            }
+          ]
+        }
+      },
+      "id": "check-callback",
+      "name": "Check Callback Action",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 500]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Extract request_id and action from callback data\nconst callbackData = items[0].json.callback_query.data;\nconst [action, requestId] = callbackData.split('_');\n\nreturn {\n  json: {\n    request_id: requestId,\n    approved: action === 'approve',\n    approver: `telegram-${items[0].json.callback_query.from.username || items[0].json.callback_query.from.first_name}`,\n    user_id: items[0].json.callback_query.from.id\n  }\n};"
+      },
+      "id": "process-approval",
+      "name": "Process Approval",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 420]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Extract request_id and action from callback data\nconst callbackData = items[0].json.callback_query.data;\nconst [action, requestId] = callbackData.split('_');\n\nreturn {\n  json: {\n    request_id: requestId,\n    approved: false,\n    approver: `telegram-${items[0].json.callback_query.from.username || items[0].json.callback_query.from.first_name}`,\n    user_id: items[0].json.callback_query.from.id\n  }\n};"
+      },
+      "id": "process-denial",
+      "name": "Process Denial", 
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 580]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8000/control/approve",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"request_id\": \"{{$json.request_id}}\",\n  \"approved\": {{$json.approved}},\n  \"approver\": \"{{$json.approver}}\"\n}",
+        "options": {}
+      },
+      "id": "send-approval",
+      "name": "Send to Rika API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [900, 500]
+    },
+    {
+      "parameters": {
+        "message": "{{$json.approved ? '✅ Control approved!' : '❌ Control denied!'}}",
+        "chatId": "={{$json.user_id}}",
+        "additionalFields": {}
+      },
+      "id": "confirm-telegram",
+      "name": "Confirm Action",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1120, 500],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot", 
+          "name": "Rika Control Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpCode": "200",
+        "message": "Invalid request - missing required fields"
+      },
+      "id": "invalid-response",
+      "name": "Invalid Request Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [680, 120]
+    },
+    {
+      "parameters": {
+        "httpCode": "200",
+        "message": "Control approval request sent successfully"
+      },
+      "id": "success-response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 200]
+    }
+  ],
+  "connections": {
+    "Control Request Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Request": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Approval",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Email Approval", 
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Invalid Request Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Telegram Approval": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait 5 Minutes",
+            "type": "main", 
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email Approval": {
+      "main": [
+        [
+          {
+            "node": "Wait 5 Minutes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 5 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Auto-Deny on Timeout",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Callback": {
+      "main": [
+        [
+          {
+            "node": "Check Callback Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Callback Action": {
+      "main": [
+        [
+          {
+            "node": "Process Approval",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process Denial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Approval": {
+      "main": [
+        [
+          {
+            "node": "Send to Rika API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Denial": {
+      "main": [
+        [
+          {
+            "node": "Send to Rika API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Rika API": {
+      "main": [
+        [
+          {
+            "node": "Confirm Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "createdAt": "2025-01-15T10:00:00.000Z",
+  "id": "rika-control-approval",
+  "tags": ["rika", "control", "approval", "security"]
+}

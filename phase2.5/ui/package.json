@@ -1,0 +1,42 @@
+{
+  "name": "rika-atlas-dashboard",
+  "version": "2.5.0",
+  "description": "Rika Atlas Dashboard - Enhanced with streaming and remote control",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "npm run dev"
+  },
+  "dependencies": {
+    "@livekit/components-react": "^1.5.3",
+    "@tanstack/react-query": "^5.8.4",
+    "axios": "^1.6.2",
+    "date-fns": "^2.30.0",
+    "livekit-client": "^1.15.13",
+    "lucide-react": "^0.294.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.37",
+    "@types/react-dom": "^18.2.15",
+    "@vitejs/plugin-react": "^4.1.1",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.31",
+    "tailwindcss": "^3.3.5",
+    "typescript": "^5.2.2",
+    "vite": "^4.5.0"
+  },
+  "keywords": [
+    "rika",
+    "atlas",
+    "dashboard",
+    "device-management",
+    "streaming",
+    "remote-control"
+  ],
+  "author": "Rika Project",
+  "license": "MIT"
+}

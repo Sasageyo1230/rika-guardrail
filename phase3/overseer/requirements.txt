@@ -1,0 +1,7 @@
+# phase3/overseer/requirements.txt
+fastapi>=0.104.0
+uvicorn>=0.24.0
+asyncpg>=0.28.0
+httpx>=0.25.0
+pydantic>=2.4.0
+python-dotenv>=1.0.0

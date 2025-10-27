@@ -1,0 +1,166 @@
+{
+  "suite_id": "presence_query_gold_v1",
+  "name": "Presence Query Gold Standard",
+  "description": "Gold standard tasks for testing presence detection and entity recognition",
+  "domains": ["presence_query"],
+  "metadata": {
+    "version": "1.0.0",
+    "created": "2024-01-15",
+    "author": "Rika Evaluation Team"
+  },
+  "tasks": [
+    {
+      "task_id": "pq_001_basic_presence",
+      "domain": "presence_query",
+      "input_data": {
+        "query": "Is John currently online?",
+        "context": {
+          "user_id": "john_doe",
+          "session_timeout": 300
+        }
+      },
+      "expected_output": {
+        "present": true,
+        "confidence": 0.95,
+        "entities": ["john_doe"],
+        "last_seen": "2024-01-15T14:30:00Z",
+        "status": "active"
+      },
+      "metadata": {
+        "difficulty": "easy",
+        "category": "basic_presence"
+      }
+    },
+    {
+      "task_id": "pq_002_absent_user",
+      "domain": "presence_query",
+      "input_data": {
+        "query": "Is Sarah available for a meeting?",
+        "context": {
+          "user_id": "sarah_smith",
+          "session_timeout": 300
+        }
+      },
+      "expected_output": {
+        "present": false,
+        "confidence": 0.88,
+        "entities": ["sarah_smith"],
+        "last_seen": "2024-01-15T12:15:00Z",
+        "status": "away"
+      },
+      "metadata": {
+        "difficulty": "easy",
+        "category": "basic_presence"
+      }
+    },
+    {
+      "task_id": "pq_003_multiple_entities",
+      "domain": "presence_query",
+      "input_data": {
+        "query": "Are John and Mike both online right now?",
+        "context": {
+          "user_ids": ["john_doe", "mike_wilson"],
+          "session_timeout": 300
+        }
+      },
+      "expected_output": {
+        "present": true,
+        "confidence": 0.92,
+        "entities": ["john_doe", "mike_wilson"],
+        "details": {
+          "john_doe": {"status": "active", "last_seen": "2024-01-15T14:30:00Z"},
+          "mike_wilson": {"status": "active", "last_seen": "2024-01-15T14:28:00Z"}
+        },
+        "status": "all_active"
+      },
+      "metadata": {
+        "difficulty": "medium",
+        "category": "multi_entity"
+      }
+    },
+    {
+      "task_id": "pq_004_partial_presence",
+      "domain": "presence_query",
+      "input_data": {
+        "query": "Who from the development team is currently online?",
+        "context": {
+          "team": "development",
+          "members": ["alice_dev", "bob_dev", "charlie_dev"],
+          "session_timeout": 300
+        }
+      },
+      "expected_output": {
+        "present": true,
+        "confidence": 0.85,
+        "entities": ["alice_dev", "bob_dev"],
+        "details": {
+          "alice_dev": {"status": "active", "last_seen": "2024-01-15T14:25:00Z"},
+          "bob_dev": {"status": "active", "last_seen": "2024-01-15T14:29:00Z"},
+          "charlie_dev": {"status": "away", "last_seen": "2024-01-15T13:45:00Z"}
+        },
+        "status": "partial_active"
+      },
+      "metadata": {
+        "difficulty": "medium",
+        "category": "team_query"
+      }
+    },
+    {
+      "task_id": "pq_005_status_query",
+      "domain": "presence_query",
+      "input_data": {
+        "query": "What's Emma's current status?",
+        "context": {
+          "user_id": "emma_manager",
+          "include_details": true
+        }
+      },
+      "expected_output": {
+        "present": true,
+        "confidence": 0.90,
+        "entities": ["emma_manager"],
+        "status": "busy",
+        "details": {
+          "emma_manager": {
+            "status": "busy",
+            "status_message": "In a meeting until 3 PM",
+            "last_seen": "2024-01-15T14:31:00Z",
+            "location": "conference_room_a"
+          }
+        }
+      },
+      "metadata": {
+        "difficulty": "medium",
+        "category": "detailed_status"
+      }
+    },
+    {
+      "task_id": "pq_006_complex_query",
+      "domain": "presence_query",
+      "input_data": {
+        "query": "Which project managers are available for an urgent client call in the next 10 minutes?",
+        "context": {
+          "role": "project_manager",
+          "urgency": "high",
+          "time_window_minutes": 10,
+          "availability_required": true
+        }
+      },
+      "expected_output": {
+        "present": true,
+        "confidence": 0.78,
+        "entities": ["david_pm", "lisa_pm"],
+        "status": "available_subset",
+        "details": {
+          "david_pm": {"status": "available", "responds_within": "2min"},
+          "lisa_pm": {"status": "available", "responds_within": "5min"},
+          "frank_pm": {"status": "in_meeting", "available_at": "15:30"}
+        }
+      },
+      "metadata": {
+        "difficulty": "hard",
+        "category": "availability_planning"
+      }
+    }
+  ]
+}

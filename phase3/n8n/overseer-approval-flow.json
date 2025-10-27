@@ -1,0 +1,289 @@
+{
+  "name": "Rika Overseer - Capability Approval",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "overseer-approval",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c5b5e2b7-8e4a-4e8b-9e7e-1234567890ab",
+      "name": "Webhook - Overseer Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "overseer-approval"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "request_id",
+              "value": "={{ $json.request_id }}"
+            },
+            {
+              "name": "capability", 
+              "value": "={{ $json.capability }}"
+            },
+            {
+              "name": "requester",
+              "value": "={{ $json.requester }}"
+            },
+            {
+              "name": "approval_url",
+              "value": "http://localhost:5678/form/overseer-approve?request_id={{ $json.request_id }}"
+            },
+            {
+              "name": "deny_url", 
+              "value": "http://localhost:5678/form/overseer-deny?request_id={{ $json.request_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d6c6f3c8-9f5b-5f9c-af8f-2345678901bc",
+      "name": "Process Request",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "channel": "{{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "🔒 **Rika Capability Approval Required**\n\n**Request ID:** {{ $json.request_id }}\n**Capability:** {{ $json.capability }}\n**Requester:** {{ $json.requester }}\n**Context:** {{ JSON.stringify($json.context) }}\n\n**Expires:** {{ $json.expires_at }}\n\n**Actions:**\n✅ [Approve]({{ $json.approval_url }})\n❌ [Deny]({{ $json.deny_url }})",
+        "additionalFields": {
+          "parse_mode": "Markdown",
+          "reply_markup": {
+            "inline_keyboard": [
+              [
+                {
+                  "text": "✅ Approve",
+                  "callback_data": "approve:{{ $json.request_id }}"
+                },
+                {
+                  "text": "❌ Deny", 
+                  "callback_data": "deny:{{ $json.request_id }}"
+                }
+              ]
+            ]
+          }
+        }
+      },
+      "id": "e7d7g4d9-ag6c-6gad-bg9g-3456789012cd",
+      "name": "Send Telegram Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [680, 200],
+      "credentials": {
+        "telegramApi": {
+          "id": "1",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "to": "{{ $env.N8N_ADMIN_EMAIL }}",
+        "subject": "🔒 Rika Capability Approval Required - {{ $json.capability }}",
+        "emailFormat": "html",
+        "message": "<!DOCTYPE html>\n<html>\n<body>\n<h2>🔒 Rika Capability Approval Required</h2>\n\n<table border=\"1\" cellpadding=\"10\" cellspacing=\"0\" style=\"border-collapse: collapse; font-family: Arial, sans-serif;\">\n  <tr><th>Field</th><th>Value</th></tr>\n  <tr><td><strong>Request ID</strong></td><td>{{ $json.request_id }}</td></tr>\n  <tr><td><strong>Capability</strong></td><td>{{ $json.capability }}</td></tr>\n  <tr><td><strong>Requester</strong></td><td>{{ $json.requester }}</td></tr>\n  <tr><td><strong>Context</strong></td><td><pre>{{ JSON.stringify($json.context, null, 2) }}</pre></td></tr>\n  <tr><td><strong>Expires At</strong></td><td>{{ $json.expires_at }}</td></tr>\n</table>\n\n<div style=\"margin: 20px 0;\">\n  <h3>Actions Required:</h3>\n  <p>Please review this request and take action within 5 minutes:</p>\n  \n  <a href=\"{{ $json.approval_url }}\" style=\"background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin: 5px;\">✅ Approve Request</a>\n  \n  <a href=\"{{ $json.deny_url }}\" style=\"background-color: #f44336; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin: 5px;\">❌ Deny Request</a>\n</div>\n\n<div style=\"background-color: #f9f9f9; padding: 10px; border-left: 4px solid #2196F3; margin: 20px 0;\">\n  <h4>ℹ️ Policy Information</h4>\n  <p>This request requires manual approval according to current policy settings. The request will auto-deny if no action is taken within the timeout period.</p>\n</div>\n\n<p><em>This is an automated message from Rika Overseer.</em></p>\n</body>\n</html>",
+        "options": {}
+      },
+      "id": "f8e8h5ea-bh7d-7hbe-ch0h-4567890123de",
+      "name": "Send Email Alert",
+      "type": "n8n-nodes-base.email",
+      "typeVersion": 2,
+      "position": [680, 400],
+      "credentials": {
+        "smtp": {
+          "id": "2", 
+          "name": "SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"status\": \"notification_sent\",\n  \"request_id\": \"{{ $('Process Request').item.json.request_id }}\",\n  \"message\": \"Approval request sent to administrators\"\n}"
+      },
+      "id": "g9f9i6fb-ci8e-8icf-di1i-5678901234ef",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook", 
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "operation": "equal",
+              "value2": "approve"
+            }
+          ]
+        }
+      },
+      "id": "h0g0j7gc-dj9f-9jdg-ej2j-6789012345f0",
+      "name": "Check Action",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5319/approve",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"request_id\": \"{{ $json.request_id }}\",\n  \"approved\": true,\n  \"approver\": \"{{ $json.approver || 'n8n-admin' }}\",\n  \"notes\": \"Approved via {{ $json.approval_method || 'n8n workflow' }}\"\n}",
+        "options": {}
+      },
+      "id": "i1h1k8hd-ek0g-0keh-fk3k-7890123456g1",
+      "name": "Send Approval",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [680, 520]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5319/approve", 
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"request_id\": \"{{ $json.request_id }}\",\n  \"approved\": false,\n  \"approver\": \"{{ $json.approver || 'n8n-admin' }}\",\n  \"notes\": \"Denied via {{ $json.approval_method || 'n8n workflow' }}\"\n}",
+        "options": {}
+      },
+      "id": "j2i2l9ie-fl1h-1lfj-gl4l-8901234567h2", 
+      "name": "Send Denial",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [680, 680]
+    },
+    {
+      "parameters": {
+        "unit": "minutes",
+        "amount": 5
+      },
+      "id": "k3j3m0jf-gm2i-2mgk-hm5m-9012345678i3",
+      "name": "Wait for Timeout",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [460, 800]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5319/approve",
+        "sendBody": true, 
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"request_id\": \"{{ $('Process Request').item.json.request_id }}\",\n  \"approved\": false,\n  \"approver\": \"system-timeout\",\n  \"notes\": \"Auto-denied due to timeout (5 minutes)\"\n}",
+        "options": {}
+      },
+      "id": "l4k4n1kg-hn3j-3nhl-in6n-0123456789j4",
+      "name": "Auto Deny on Timeout",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [680, 800]
+    }
+  ],
+  "connections": {
+    "Webhook - Overseer Request": {
+      "main": [
+        [
+          {
+            "node": "Process Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Request": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Alert",
+            "type": "main", 
+            "index": 0
+          },
+          {
+            "node": "Send Email Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait for Timeout",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Telegram Alert": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email Alert": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response", 
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Action": {
+      "main": [
+        [
+          {
+            "node": "Send Approval",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Denial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Timeout": {
+      "main": [
+        [
+          {
+            "node": "Auto Deny on Timeout",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "1",
+  "id": "overseer-approval-flow",
+  "meta": {
+    "instanceId": "rika-overseer"
+  },
+  "tags": [
+    {
+      "createdAt": "2024-01-15T10:00:00.000Z",
+      "updatedAt": "2024-01-15T10:00:00.000Z",
+      "id": "1",
+      "name": "rika-overseer"
+    }
+  ]
+}

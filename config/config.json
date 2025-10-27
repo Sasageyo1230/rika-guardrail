@@ -1,0 +1,33 @@
+{
+  "llm": {
+    "default_provider": "anthropic",
+    "providers": {
+      "anthropic": {
+        "model": "claude-3-sonnet-20240229",
+        "max_tokens": 4000
+      },
+      "openai": {
+        "model": "gpt-4",
+        "max_tokens": 4000
+      },
+      "local": {
+        "model": "llama2:7b",
+        "max_tokens": 4000
+      }
+    }
+  },
+  "memory": {
+    "provider": "json",
+    "max_history": 50
+  },
+  "tools": {
+    "n8n": {
+      "enabled": true,
+      "timeout": 30
+    }
+  },
+  "ui": {
+    "design_mode_enabled": true,
+    "auto_backup": true
+  }
+}
